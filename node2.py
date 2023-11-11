@@ -18,34 +18,18 @@ def listen_to_tc():
         s.bind(participant_address)
         s.listen()
 
-        # Set a timeout for the 'prepare' message
-        s.settimeout(prepare_timeout)
-
-        while True:
-            try:
-                conn, addr = s.accept()
-                with conn:
-                    data = conn.recv(1024).decode()
-                    print(f"Received message from TC: {data}")
-
-                    if data.startswith("PREPARE"):
-                        transaction_id = data.split()[1]
-                        if state['decision'] == 'abort':
-                            # If already decided to abort (due to timeout), respond 'no'
-                            print(f"Responding 'no' to 'prepare' message for transaction {transaction_id}")
-                            send_response_to_tc('NO')
-                        else:
-                            # Handle the 'prepare' message normally
-                            state['transaction_id'] = transaction_id
-                            state['prepared'] = False
-                            handle_prepare()
-
-            except socket.timeout:
-                # Timeout occurred, no 'prepare' message received
-                print(f"Timeout occurred. No 'prepare' message received for transaction {state['transaction_id']}")
-                state['decision'] = 'abort'
-                # Be ready to respond 'no' to any subsequent 'prepare' message
-
+        while True:  # Loop to handle multiple transactions
+            conn, addr = s.accept()
+            with conn:
+                data = conn.recv(1024).decode()
+                print(f"Received message from TC: {data}")
+                
+                if data.startswith("PREPARE"):
+                    transaction_id = data.split()[1]
+                    state['transaction_id'] = transaction_id
+                    state['prepared'] = False  # Reset the prepared state for the new transaction
+                    state['decision'] = 'abort'  # Reset the decision for the new transaction
+                    handle_prepare()
 
 def handle_prepare():
     """ Handles the "prepare" message from the TC. """

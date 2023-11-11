@@ -1,6 +1,6 @@
 import socket
 import threading
-import time
+
 # Configuration
 participant_nodes = ['localhost:1026', 'localhost:1027']  # Example addresses for participant nodes
 
@@ -13,11 +13,10 @@ def send_prepare_message(transaction_id, simulate_failure):
     state['prepare_sent'] = False
     state['responses'] = {node: None for node in participant_nodes}
 
+    # Check if we need to simulate TC failure
     if simulate_failure:
-        print(f"Simulating TC failure for transaction {transaction_id}.")
-        # Simulate failure by not sending 'prepare' and exiting the function
-        time.sleep(5)  # Simulate some processing time before failure
-        return  # Exit the function to simulate failure
+        print(f"Simulating TC failure for transaction {transaction_id}. No 'prepare' message will be sent.")
+        return
 
     # Send prepare message to each participant node
     for node in participant_nodes:
