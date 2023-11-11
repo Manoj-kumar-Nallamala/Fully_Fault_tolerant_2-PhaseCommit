@@ -49,15 +49,16 @@ def handle_prepare():
 
 
 def send_response_to_tc(response):
-    """ Sends a response to the Transaction Coordinator. """
+    """ Sends a response to the Transaction Coordinator along with the node's identifier (port number). """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
             s.connect(tc_address)
-            message = f"{state['transaction_id']} {response}"
+            message = f"{state['transaction_id']} {participant_address[1]} {response}"
             s.sendall(message.encode())
             print(f"Sent {response} to TC for transaction {state['transaction_id']}")
         except ConnectionError as e:
             print(f"Failed to send response to TC: {e}")
+
 
 def main():
     listen_thread = threading.Thread(target=listen_to_tc)

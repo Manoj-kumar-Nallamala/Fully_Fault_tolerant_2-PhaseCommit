@@ -1,6 +1,6 @@
 import socket
 import threading
-
+import time
 # Configuration
 participant_nodes = ['localhost:1026', 'localhost:1027']  # Example addresses for participant nodes
 
@@ -31,6 +31,8 @@ def send_prepare_message(transaction_id, simulate_failure):
 
     state['prepare_sent'] = True
 
+import time  # Make sure to import the time module
+
 def listen_for_responses():
     global state
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -40,22 +42,37 @@ def listen_for_responses():
 
         responses_received = 0
         expected_responses = len(participant_nodes)
+        start_time = time.time()  # Record the start time
 
-        while responses_received < expected_responses:
-            conn, addr = s.accept()
-            with conn:
-                data = conn.recv(1024).decode()
-                transaction_id, response = data.split()
-                if transaction_id == state['transaction_id']:
-                    # Map the response based on the transaction ID and response
-                    for node in participant_nodes:
-                        if state['responses'][node] is None:
-                            state['responses'][node] = response
+        while responses_received < expected_responses and time.time() - start_time < 30:  # 30-second timeout
+            try:
+                s.settimeout(30 - (time.time() - start_time))  # Adjust the timeout as time elapses
+                conn, addr = s.accept()
+                with conn:
+                    data = conn.recv(1024).decode()
+                    transaction_id, responding_port, response = data.split()
+                    if transaction_id == state['transaction_id']:
+                        responding_node = f'localhost:{responding_port}'
+                        if responding_node in participant_nodes:
+                            state['responses'][responding_node] = response
                             responses_received += 1
-                            break
-                    print(f"Received response: {response} from {addr}")
+                            print(f"Received response: {response} from {responding_node}")
+                            if response == 'NO':  # Abort immediately if any node responds with 'NO'
+                                print("At least one participant voted to abort. Aborting transaction.")
+                                return
+            except socket.timeout:
+                # Timeout occurred before receiving all responses
+                print("Response timeout. Aborting transaction.")
+                return
 
-        # ... (rest of the code for decision-making)
+        # Check if all responses are 'YES'
+        if all(response == 'YES' for response in state['responses'].values()):
+            print("All participants agreed to commit. Committing transaction.")
+        else:
+            print("At least one participant voted to abort or did not respond. Aborting transaction.")
+
+
+
 
 
 
