@@ -1,1 +1,1 @@
-cd Desktop/Masters/Distributed Systems/Test/
+cd '.\Desktop\Masters\Distributed Systems\Test\'
