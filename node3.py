@@ -10,6 +10,36 @@ prepare_timeout = 60  # Timeout in seconds for the "prepare" message
 # State
 state = {'transaction_id': None, 'prepared': False, 'decision': 'abort'}
 
+timed_out_transactions = []
+
+def transaction_timeout(transaction_id):
+    """ Function to be called when the transaction times out """
+    global timed_out_transactions
+    if transaction_id not in timed_out_transactions:
+        timed_out_transactions.append(transaction_id)
+    print(f"Transaction {transaction_id} timed out waiting for 'prepare' message.")
+
+def start_transaction_timeout(duration, transaction_id):
+    """ Start a timer for the transaction """
+    timeout_timer = threading.Timer(duration, transaction_timeout, [transaction_id])
+    timeout_timer.start()
+
+# Global state
+state = {
+    'transaction_id': None,
+    'prepared': False,
+    'timed_out': False
+}
+
+
+def handle_start_transaction(transaction_id):
+    """ Handle the start of a new transaction. """
+    global state
+    state['transaction_id'] = transaction_id
+    state['prepared'] = False
+    state['timed_out'] = False
+    start_transaction_timeout(30,transaction_id)
+
 def listen_to_tc():
     """ Listens for messages from the Transaction Coordinator. """
     global state
@@ -29,21 +59,26 @@ def listen_to_tc():
                     state['transaction_id'] = transaction_id
                     state['prepared'] = False  # Reset the prepared state for the new transaction
                     state['decision'] = 'abort'  # Reset the decision for the new transaction
-                    handle_prepare()
+                    handle_prepare(transaction_id)
                 elif data.startswith("COMMIT"):
                     transaction_id = data.split()[1]
                     append_to_committed_file(transaction_id)
                     remove_aborted_commit(transaction_id)
                     print(f"Transaction {transaction_id} committed.")
 
-def handle_prepare():
+def handle_prepare(transaction_id):
     """ Handles the "prepare" message from the TC. """
     global state
+    user_decision = input("Do you want to commit the transaction? (yes/no): ").lower()
+    if transaction_id in timed_out_transactions:
+        print(f"Transaction {transaction_id} already timed out. Responding 'no'.")
+        send_response_to_tc('NO', transaction_id)
+        return
     state['prepared'] = True
 
     print(f"Node preparing for transaction {state['transaction_id']}...")
     # Simulate decision making
-    user_decision = input("Do you want to commit the transaction? (yes/no): ").lower()
+    
 
     if user_decision == 'yes':
         write_aborted_commit(state['transaction_id'])

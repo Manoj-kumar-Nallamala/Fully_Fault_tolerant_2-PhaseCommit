@@ -8,6 +8,18 @@ participant_nodes = ['localhost:1026', 'localhost:1027']  # Example addresses fo
 # States
 state = {'transaction_id': None, 'prepare_sent': False, 'responses': {}}
 
+def notify_participant_nodes_of_new_transaction(transaction_id):
+    """ Notify participant nodes about the start of a new transaction. """
+    for node in participant_nodes:
+        host, port = node.split(':')
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((host, int(port)))
+                s.sendall(f"START {transaction_id}".encode())
+                print(f"Notified {node} about the start of transaction {transaction_id}")
+        except ConnectionError as e:
+            print(f"Failed to notify {node} about the start of transaction {transaction_id}: {e}")
+
 def send_prepare_message(transaction_id, simulate_failure):
     global state
     state['transaction_id'] = transaction_id
@@ -16,8 +28,9 @@ def send_prepare_message(transaction_id, simulate_failure):
 
     # Check if we need to simulate TC failure
     if simulate_failure:
+        notify_participant_nodes_of_new_transaction(transaction_id)
         print(f"Simulating TC failure for transaction {transaction_id}. No 'prepare' message will be sent.")
-        return
+        time.sleep(40)
 
     # Send prepare message to each participant node
     for node in participant_nodes:
@@ -123,9 +136,9 @@ def listen_for_responses():
         expected_responses = len(participant_nodes)
         start_time = time.time()  # Record the start time
 
-        while responses_received < expected_responses and time.time() - start_time < 30:  # 30-second timeout
+        while responses_received < expected_responses and time.time() - start_time < 60:  # 30-second timeout
             try:
-                s.settimeout(30 - (time.time() - start_time))  # Adjust the timeout as time elapses
+                s.settimeout(60 - (time.time() - start_time))  # Adjust the timeout as time elapses
                 conn, addr = s.accept()
                 with conn:
                     data = conn.recv(1024).decode()
