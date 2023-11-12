@@ -1,6 +1,7 @@
 import socket
 import threading
 import time
+import os
 # Configuration
 participant_nodes = ['localhost:1026', 'localhost:1027']  # Example addresses for participant nodes
 
@@ -31,7 +32,57 @@ def send_prepare_message(transaction_id, simulate_failure):
 
     state['prepare_sent'] = True
 
-import time  # Make sure to import the time module
+
+def write_transaction_to_file(transaction_id, nodes_commit_status):
+    """ Writes the transaction information and commit status to a file. """
+    filename = f"transaction_{transaction_id}.txt"
+    with open(filename, 'w') as file:
+        data_entries = [f"{node}:{status}" for node, status in nodes_commit_status.items()]
+        data = f"{transaction_id},{'|'.join(data_entries)}"
+        file.write(data)
+
+
+
+
+def send_commit_messages(transaction_id, nodes_commit_status):
+    """ Sends a commit message to each participant node and updates the file upon success. """
+    for node, status in nodes_commit_status.items():
+        if status == 'pending':
+            host, port = node.split(':')
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.connect((host, int(port)))
+                    s.sendall(f"COMMIT {transaction_id}".encode())
+                    print(f"Sent COMMIT to {node}")
+                    nodes_commit_status[node] = 'done'
+            except ConnectionError as e:
+                print(f"Failed to send COMMIT to {node}: {e}")
+    
+    write_transaction_to_file(transaction_id, nodes_commit_status)
+
+def recover_transactions():
+    """ Recover transactions from files and complete any unfinished commitments. """
+    for filename in os.listdir('.'):
+        if filename.startswith('transaction_') and filename.endswith('.txt'):
+            with open(filename, 'r') as file:
+                data = file.read()
+
+            transaction_id, nodes_data = data.split(',')
+            nodes_commit_status = {}
+            for node_data in nodes_data.split('|'):
+                node_address, status = node_data.rsplit(':', 1)  # Split from the right at the last colon
+                nodes_commit_status[node_address] = status
+
+            
+
+            pending_nodes = {node: status for node, status in nodes_commit_status.items() if status == 'pending'}
+
+            if pending_nodes:
+                send_commit_messages(transaction_id, pending_nodes)
+
+
+
+
 
 def listen_for_responses():
     global state
@@ -67,7 +118,10 @@ def listen_for_responses():
 
         # Check if all responses are 'YES'
         if all(response == 'YES' for response in state['responses'].values()):
-            print("All participants agreed to commit. Committing transaction.")
+            nodes_commit_status = {node: 'pending' for node in participant_nodes}
+            write_transaction_to_file(state['transaction_id'], nodes_commit_status)
+            print("All participants agreed to commit. Writing to file and committing transaction.")
+            send_commit_messages(state['transaction_id'], nodes_commit_status)
         else:
             print("At least one participant voted to abort or did not respond. Aborting transaction.")
 
@@ -75,21 +129,9 @@ def listen_for_responses():
 
 
 
-
-        # Check if all responses are 'YES'
-        if all(response == 'YES' for response in state['responses'].values()):
-            print("All participants agreed to commit.")
-            # Send commit message to all participants
-            # ...
-        else:
-            print("At least one participant voted to abort.")
-            # Send abort message to all participants
-            # ...
-
-
-
 def main():
     while True:  # Loop to handle multiple transactions
+        recover_transactions()
         transaction_id = input("Enter transaction ID to initiate (or 'exit' to stop): ")
         if transaction_id.lower() == 'exit':
             break
