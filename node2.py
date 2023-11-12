@@ -30,6 +30,13 @@ def listen_to_tc():
                     state['prepared'] = False  # Reset the prepared state for the new transaction
                     state['decision'] = 'abort'  # Reset the decision for the new transaction
                     handle_prepare()
+                # Inside listen_to_tc() function, add the following:
+                elif data.startswith("COMMIT"):
+                    transaction_id = data.split()[1]
+                    append_to_committed_file(transaction_id)
+                    remove_aborted_commit(transaction_id)
+                    print(f"Transaction {transaction_id} committed.")
+
 
 def handle_prepare():
     """ Handles the "prepare" message from the TC. """
@@ -41,12 +48,58 @@ def handle_prepare():
     user_decision = input("Do you want to commit the transaction? (yes/no): ").lower()
 
     if user_decision == 'yes':
+        write_aborted_commit(state['transaction_id'])
         print(f"Transaction {state['transaction_id']} prepared successfully.")
         send_response_to_tc('YES')
     else:
         print(f"Transaction {state['transaction_id']} aborted.")
         send_response_to_tc('NO')
 
+def write_aborted_commit(transaction_id):
+    """ Write the transaction ID to the aborted commit file. """
+    with open('node2_aborted_commits.txt', 'a') as file:  # Use 'node2_aborted_commits.txt' for Node2
+        file.write(transaction_id + "\n")
+
+def remove_aborted_commit(transaction_id):
+    """ Remove the transaction ID from the aborted commit file. """
+    with open('node2_aborted_commits.txt', 'r') as file:  # Use 'node2_aborted_commits.txt' for Node2
+        lines = file.readlines()
+    with open('node2_aborted_commits.txt', 'w') as file:  # Use 'node2_aborted_commits.txt' for Node2
+        for line in lines:
+            if line.strip() != transaction_id:
+                file.write(line)
+
+def append_to_committed_file(transaction_id):
+    """ Append the committed transaction ID to the committed transactions file. """
+    # Use the appropriate file name for each node
+    committed_file = 'node2committed.txt'  # Use 'node3committed.txt' for Node3
+    with open(committed_file, 'a') as file:
+        file.write(transaction_id + "\n")
+
+def inquire_transaction_status(transaction_id):
+    """ Inquire about the status of a transaction from the TC. """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.connect(tc_address)
+            s.sendall(f"INQUIRE {transaction_id}".encode())
+            response = s.recv(1024).decode()
+            print(f"Received response for transaction {transaction_id}: {response}")
+            # Handle the response (commit or abort) accordingly
+        except ConnectionError as e:
+            print(f"Failed to connect to TC: {e}")
+
+def check_aborted_transactions():
+    """ Check for any aborted transactions and inquire about their status. """
+    try:
+        with open('node2_aborted_commits.txt', 'r') as file:  # Use the correct file name for each node
+            transaction_ids = file.readlines()
+        for transaction_id in transaction_ids:
+            transaction_id = transaction_id.strip()
+            inquire_transaction_status(transaction_id)
+    except FileNotFoundError:
+        pass  # No aborted commits file found
+
+# Call check_aborted_transactions periodically or during startup
 
 def send_response_to_tc(response):
     """ Sends a response to the Transaction Coordinator along with the node's identifier (port number). """
@@ -61,6 +114,7 @@ def send_response_to_tc(response):
 
 
 def main():
+    check_aborted_transactions()
     listen_thread = threading.Thread(target=listen_to_tc)
     listen_thread.start()
     listen_thread.join()
