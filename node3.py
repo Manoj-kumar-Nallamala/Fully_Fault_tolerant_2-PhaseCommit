@@ -62,6 +62,9 @@ def listen_to_tc():
                     handle_prepare(transaction_id)
                 elif data.startswith("COMMIT"):
                     transaction_id = data.split()[1]
+                    ## Uncomment these two below line if you want to make Node fail after sending commit to one of the participant node.
+                    print(f"Simulating Node sleep You can stop Node if you want to trigger to stop message to rest of the nodes")
+                    time.sleep(40)
                     append_to_committed_file(transaction_id)
                     remove_aborted_commit(transaction_id)
                     print(f"Transaction {transaction_id} committed.")

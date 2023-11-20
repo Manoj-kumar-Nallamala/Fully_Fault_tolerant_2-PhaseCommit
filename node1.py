@@ -68,10 +68,12 @@ def send_commit_messages(transaction_id, nodes_commit_status):
                     s.sendall(f"COMMIT {transaction_id}".encode())
                     print(f"Sent COMMIT to {node}")
                     nodes_commit_status[node] = 'done'
+                    write_transaction_to_file(transaction_id, nodes_commit_status)
             except ConnectionError as e:
                 print(f"Failed to send COMMIT to {node}: {e}")
-    
-    write_transaction_to_file(transaction_id, nodes_commit_status)
+        ## Uncomment these two below line if you want to make TC fail after sending commit to one of the participant node.
+        #print(f"Simulating TC sleep You can stop TC if you want to trigger to stop message to rest of the nodes")
+        #time.sleep(40)
 
 def handle_inquiry(transaction_id, client_socket):
     """ Handle an inquiry about a transaction's status. """
