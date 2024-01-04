@@ -24,10 +24,10 @@ python node2.py
 For Node 3:
 python node3.py
 
-Testing Scenarios
+# Testing Scenarios
 The project is designed to handle various failure scenarios to test the robustness of the 2PC protocol. Here are instructions for testing each part:
 
-Part 1: TC Fails Before Sending "Prepare"
+### Part 1: TC Fails Before Sending "Prepare"
 Objective: To simulate the scenario where the TC fails before sending the "prepare" message.
 How to Test:
 Run the TC and initiate a transaction.
@@ -36,7 +36,7 @@ Observe the behavior of participant nodes (they should timeout and abort).
 Restart the TC and check the recovery and final state of the transaction.
 
 
-Part 2: Node Does Not Respond "Yes"
+### Part 2: Node Does Not Respond "Yes"
 Objective: To test the situation where a participant node does not respond with "yes".
 How to Test:
 Run the TC and participant nodes.
@@ -44,7 +44,7 @@ Initiate a transaction and, when prompted on a participant node, choose not to c
 Observe the TC aborting the transaction.
 
 
-Part 3: TC Handles Incomplete Commit
+### Part 3: TC Handles Incomplete Commit
 Objective:
 This part tests the TC's ability to recover from a scenario where it fails after sending a "commit" message to some but not all participant nodes. This is achieved by simulating the TC's failure during the commit phase.
 
@@ -75,7 +75,7 @@ It's important to ensure consistency in the transaction ID and to verify the int
 The recovery mechanism is key to maintaining the integrity and consistency of the distributed commit process in a fault-tolerant system.
 
 
-Part 4: Node Recovery After Failing Post-'Yes' Confirmation
+### Part 4: Node Recovery After Failing Post-'Yes' Confirmation
 
 Objective:
 This part aims to test and ensure the proper recovery of a participant node if it fails after sending a 'yes' vote to the Transaction Coordinator (TC), but before the actual commit takes place. The focus is on the node's ability to inquire about the transaction status from the TC upon recovery.
@@ -112,7 +112,7 @@ This test demonstrates the resilience of the participant nodes and their ability
 It highlights the importance of the TC's recovery mode in assisting participant nodes to reconcile their state with the overall transaction state.
 The automated inquiry and response mechanism ensures the integrity and consistency of the distributed commit process even in the face of node failures.
 
-#Additional Notes
+## Additional Notes
 Ensure all nodes and the TC are running on the same network.
 The default ports are set in the scripts, but they can be modified if needed.
 Detailed logging is implemented for easier debugging and understanding of the protocol flow.
