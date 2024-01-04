@@ -1,5 +1,5 @@
 # Fault-Tolerant 2-Phase Distributed Commit Protocol Implementation
-#System Architecture
+## System Architecture
 This project implements a fault-tolerant 2-phase distributed commit (2PC) protocol. It involves a Transaction Coordinator (TC) and multiple participant nodes. The system is designed to handle node crashes and recover appropriately, ensuring transaction integrity.
 
 Components
